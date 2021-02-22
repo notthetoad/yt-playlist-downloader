@@ -19,16 +19,21 @@ def main():
         pprint.pprint(item['snippet']['title'])
     # pprint.pprint(response)
     user_input = input('Select a playlist: ')
-    for item in response['items']:
-        if user_input == item['snippet']['title']:
-            id = item['id']
-            selected_playlist = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, maxResults=50).execute()
-            # pprint.pprint(selected_playlist)
-            for item in selected_playlist['items']:
-                position = item['snippet']['position']
-                title = item['snippet']['title']
-                link = 'youtu.be/' + item['contentDetails']['videoId']
-                print(position, title, '\n', link)
+    # while response['nextPageToken']:
+        # token = response['nextPageToken']
+    for item in response:
+        for item in response['items']:
+            if user_input == item['snippet']['title']:
+                id = item['id']
+                selected_playlist = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, maxResults=50).execute()
+                # pprint.pprint(selected_playlist)
+                token = selected_playlist['nextPageToken']
+                next_page = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, maxResults=50, pageToken=token).execute()
+                for item in selected_playlist['items']:
+                    position = item['snippet']['position']
+                    title = item['snippet']['title']
+                    link = 'youtu.be/' + item['contentDetails']['videoId']
+                    print(position, title, '\n', link)
 
 
 
