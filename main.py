@@ -12,6 +12,8 @@ SCOPES = ['https://www.googleapis.com/auth/youtube.readonly']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 
+starting_dir = os.path.dirname(os.path.abspath(__file__))
+
 def main():
     credentials = None
     # check if credentials exist if not make and write to file
@@ -42,7 +44,7 @@ def main():
     for item in response['items']:
         if user_input == item['snippet']['title']:
             # check if dir for playlist exists if not create
-            starting_dir = os.path.dirname(os.path.abspath(__file__))
+            # starting_dir = os.path.dirname(os.path.abspath(__file__))
             new_path = os.path.join(starting_dir, user_input)
             if os.path.exists(item['snippet']['title']):
                 # os.path.join(current_dir, os.mkdir(item['snippet']['title']))
@@ -76,6 +78,7 @@ def main():
                     }
                     with youtube_dl.YoutubeDL(ydl_options) as ydl:
                         ydl.download([link])
+                        os.chdir(starting_dir)
 
 # Make directory for each playlist and download to them
 
