@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import os
 import pprint
 import pickle
@@ -40,17 +41,27 @@ def main():
             id = item['id']
             page_token = ''
             while page_token != None:
-                selected_playlist = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, pageToken=page_token)
+                selected_playlist = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, maxResults=50, pageToken=page_token)
                 playlist = selected_playlist.execute()
                 page_token = playlist.get('nextPageToken', None)
                 for video in playlist['items']:
                     position = video['snippet']['position']
                     title = video['snippet']['title']
                     # link = 'youtu.be/{}'.format(video['contentDetails']['videoId'])
-                    link = 'https://www.youtube.com/watch?v={}'.format(video['contentDetails']['videoId'])
+                    link = 'http://www.youtube.com/watch?v={}'.format(video['contentDetails']['videoId'])
                     print(position, title, '\n', link)
+                    ydl_options = {
+                        'format': 'bestaudio/best',
+                        'postprocessors': [{
+                            'key': 'FFmpegExtractAudio',
+                            'preferredcodec': 'mp3',
+                            'preferredquality': '192'
+                        }]
+                    }
+                    with youtube_dl.YoutubeDL(ydl_options) as ydl:
+                        ydl.download([link])
 
-
+# Make directory for each playlist and download to them
 
 if __name__ == '__main__':
     main()
