@@ -14,7 +14,7 @@ API_VERSION = 'v3'
 
 def main():
     credentials = None
-
+    # check if credentials exist if not make and write to file
     if os.path.exists('token.pickle'):
         print('Getting credentials from file')
         with open('token.pickle', 'rb') as token:
@@ -30,16 +30,33 @@ def main():
             with open('token.pickle', 'wb') as token:
                 print("Saving credentials")
                 pickle.dump(credentials, token)
+    # get response from api call
     youtube =  build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
     request = youtube.playlists().list(part='snippet', maxResults=25, mine=True)
     response = request.execute()
+    # print out all playlist names on 1 page
     for item in response['items']:
         pprint.pprint(item['snippet']['title'])
+    # select a playlist
     user_input = input('Select a playlist: ')
     for item in response['items']:
         if user_input == item['snippet']['title']:
+            # check if dir for playlist exists if not create
+            starting_dir = os.path.dirname(os.path.abspath(__file__))
+            new_path = os.path.join(starting_dir, user_input)
+            if os.path.exists(item['snippet']['title']):
+                # os.path.join(current_dir, os.mkdir(item['snippet']['title']))
+                os.chdir(new_path)
+            else:
+                # os.path.join(current_dir, playlist_dir)
+                # prnit('dir does not exist')
+                os.mkdir(user_input)
+                os.chdir(new_path)
+                # pass
             id = item['id']
             page_token = ''
+            # page_token = None
+            # download and convert all playlist items private or deleted video crash program
             while page_token != None:
                 selected_playlist = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, maxResults=50, pageToken=page_token)
                 playlist = selected_playlist.execute()
@@ -47,7 +64,6 @@ def main():
                 for video in playlist['items']:
                     position = video['snippet']['position']
                     title = video['snippet']['title']
-                    # link = 'youtu.be/{}'.format(video['contentDetails']['videoId'])
                     link = 'http://www.youtube.com/watch?v={}'.format(video['contentDetails']['videoId'])
                     print(position, title, '\n', link)
                     ydl_options = {
