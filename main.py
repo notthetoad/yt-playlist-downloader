@@ -1,4 +1,7 @@
+import os
 import pprint
+import pickle
+import youtube_dl
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -9,32 +12,43 @@ API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 
 def main():
-    flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
-    credentials = flow.run_console()
+    credentials = None
+
+    if os.path.exists('token.pickle'):
+        print('Getting credentials from file')
+        with open('token.pickle', 'rb') as token:
+            credentials = pickle.load(token)
+    if not credentials or not credentials.valid:
+        if credentials and credentials.expired and credentials.refresh_token:
+            print('Refreshing token')
+            credentials.refresh(Request())
+        else:
+            print('Getting new token')
+            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
+            credentials = flow.run_console()
+            with open('token.pickle', 'wb') as token:
+                print("Saving credentials")
+                pickle.dump(credentials, token)
     youtube =  build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
     request = youtube.playlists().list(part='snippet', maxResults=25, mine=True)
     response = request.execute()
     for item in response['items']:
-    #     pprint.pprint(item['id'])
         pprint.pprint(item['snippet']['title'])
-    # pprint.pprint(response)
     user_input = input('Select a playlist: ')
-    # while response['nextPageToken']:
-        # token = response['nextPageToken']
-    for item in response:
-        for item in response['items']:
-            if user_input == item['snippet']['title']:
-                id = item['id']
-                selected_playlist = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, maxResults=50).execute()
-                # pprint.pprint(selected_playlist)
-                token = selected_playlist['nextPageToken']
-                next_page = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, maxResults=50, pageToken=token).execute()
-                for item in selected_playlist['items']:
-                    position = item['snippet']['position']
-                    title = item['snippet']['title']
-                    link = 'youtu.be/' + item['contentDetails']['videoId']
+    for item in response['items']:
+        if user_input == item['snippet']['title']:
+            id = item['id']
+            page_token = ''
+            while page_token != None:
+                selected_playlist = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, pageToken=page_token)
+                playlist = selected_playlist.execute()
+                page_token = playlist.get('nextPageToken', None)
+                for video in playlist['items']:
+                    position = video['snippet']['position']
+                    title = video['snippet']['title']
+                    # link = 'youtu.be/{}'.format(video['contentDetails']['videoId'])
+                    link = 'https://www.youtube.com/watch?v={}'.format(video['contentDetails']['videoId'])
                     print(position, title, '\n', link)
-
 
 
 
