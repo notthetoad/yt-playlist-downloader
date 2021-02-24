@@ -3,6 +3,7 @@ import os
 import pprint
 import pickle
 import youtube_dl
+from youtube_dl.utils import DownloadError
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -77,8 +78,11 @@ def main():
                         }]
                     }
                     with youtube_dl.YoutubeDL(ydl_options) as ydl:
-                        ydl.download([link])
-                        os.chdir(starting_dir)
+                        try:
+                            ydl.download([link])
+                        except DownloadError:
+                            continue
+            os.chdir(starting_dir)
 
 # Make directory for each playlist and download to them
 
