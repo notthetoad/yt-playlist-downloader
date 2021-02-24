@@ -3,6 +3,7 @@ import os
 import pprint
 import pickle
 import youtube_dl
+import re
 from youtube_dl.utils import DownloadError
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -12,6 +13,62 @@ CLIENT_SECRET_FILE = 'client_secrets.json'
 SCOPES = ['https://www.googleapis.com/auth/youtube.readonly']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
+
+class PlaylistDownloader():
+
+    def __init__(self, credentials):
+        self.credentials = credentials
+        self.playlists = None
+
+    def download_single_item(self, id):
+        video_link = 'http://youtube.com/watch?v={}'.format(id)
+        ydl_options = {
+                        'format': 'bestaudio/best',
+                        'postprocessors': [{
+                            'key': 'FFmpegExtractAudio',
+                            'preferredcodec': 'mp3',
+                            'preferredquality': '192'
+                        }]
+                    }
+        with youtube_dl.YoutubeDL(ydl_options) as ydl:
+            try:
+                ydl.download([video_link])
+            except DownloadError:
+                pass
+
+    def list_playlists(self):
+        if not self.playlists:
+            youtube = build(API_SERVICE_NAME, API_VERSION, credentials=self.credentials)
+            request = youtube.playlists().list(part='snippet', maxResults=25, mine=True)
+            response = request.execute()
+            playlists = [{'id': item['id'], 'title': item['snippet']['title']} for item in response['items']]
+            self.playlists = playlists
+        return [p['title'] for p in self.playlists]
+
+    def list_playlist_items(self, id):
+        page_token = ''
+        playlist_videos = []
+        while page_token != None:
+            selected_playlist = youtube.playlistItem().list(part='snippet, contentDetails', maxResults=50, playlistId=id, pageToken=page_token)
+            playlist = selected_playlist.execute()
+            page_token = playlist.get('nextPageToken', None)
+            videos = [{'position': video['snippet']['position'],
+                       'title': video['snippet']['title'],
+                       'id': video['contentDetails']['videoId']} for video in playlist['items']]
+            playlist_videos += videos
+            
+    def download_all(self):
+        if not self.playlists:
+            self.list_playlists()
+        all_videos = []
+        for playlist in self.playlists:
+            all_videos += self.list_playlist_items(playlist['id'])
+        
+        for video in all_videos:
+            self.download_single_item(video['id'])
+        
+
+
 
 starting_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -33,56 +90,25 @@ def main():
             with open('token.pickle', 'wb') as token:
                 print("Saving credentials")
                 pickle.dump(credentials, token)
-    # get response from api call
-    youtube =  build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
-    request = youtube.playlists().list(part='snippet', maxResults=25, mine=True)
-    response = request.execute()
-    # print out all playlist names on 1 page
-    for item in response['items']:
-        pprint.pprint(item['snippet']['title'])
-    # select a playlist
-    user_input = input('Select a playlist: ')
-    for item in response['items']:
-        if user_input == item['snippet']['title']:
-            # check if dir for playlist exists if not create
-            # starting_dir = os.path.dirname(os.path.abspath(__file__))
-            new_path = os.path.join(starting_dir, user_input)
-            if os.path.exists(item['snippet']['title']):
-                # os.path.join(current_dir, os.mkdir(item['snippet']['title']))
-                os.chdir(new_path)
+    pldl = PlaylistDownloader(credentials)
+    user_input = ''
+    while user_input not in ['q', 'quit', 'exit']:
+        print('Choose operation (h for help):')
+        user_input = input('>> ')
+        #user_input = user_input.lower()
+        cmd = re.split('\s+', user_input)[0].lower() 
+        if cmd in ['ls']:
+            for playlist in pldl.list_playlists():
+                print(playlist)
+        elif cmd in ['d', 'download', 'dl']:
+            match = re.match(r'(d|dl|download)\s+(.*)', user_input, flags=re.I)
+            target_playlist = match.group(2)
+            if target_playlist in pldl.list_playlists():
+                print('hit')
             else:
-                # os.path.join(current_dir, playlist_dir)
-                # prnit('dir does not exist')
-                os.mkdir(user_input)
-                os.chdir(new_path)
-                # pass
-            id = item['id']
-            page_token = ''
-            # page_token = None
-            # download and convert all playlist items private or deleted video crash program
-            while page_token != None:
-                selected_playlist = youtube.playlistItems().list(part='snippet, contentDetails', playlistId=id, maxResults=50, pageToken=page_token)
-                playlist = selected_playlist.execute()
-                page_token = playlist.get('nextPageToken', None)
-                for video in playlist['items']:
-                    position = video['snippet']['position']
-                    title = video['snippet']['title']
-                    link = 'http://www.youtube.com/watch?v={}'.format(video['contentDetails']['videoId'])
-                    print(position, title, '\n', link)
-                    ydl_options = {
-                        'format': 'bestaudio/best',
-                        'postprocessors': [{
-                            'key': 'FFmpegExtractAudio',
-                            'preferredcodec': 'mp3',
-                            'preferredquality': '192'
-                        }]
-                    }
-                    with youtube_dl.YoutubeDL(ydl_options) as ydl:
-                        try:
-                            ydl.download([link])
-                        except DownloadError:
-                            continue
-            os.chdir(starting_dir)
+                print('No such playlist!')
+        else:
+            print('Invalid command!')
 
 # Make directory for each playlist and download to them
 
