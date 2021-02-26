@@ -34,7 +34,7 @@ class PlaylistDownloader():
         with youtube_dl.YoutubeDL(ydl_options) as ydl:
             try:
                 ydl.download([video_link])
-            except DownloadError:
+            except:
                 pass
 
     def list_playlists(self):
@@ -46,8 +46,6 @@ class PlaylistDownloader():
             playlists = [{'id': item['id'], 'title': item['snippet']['title']}
                          for item in response['items']]
             self.playlists = playlists
-        # return [p['title'] for p in self.playlists]
-        # pl = [{'title': p['title'], 'id': p['id']} for p in self.playlists]
         return self.playlists
 
     def list_playlist_items(self, id):
@@ -80,6 +78,8 @@ class PlaylistDownloader():
 starting_dir = os.path.dirname(os.path.abspath(__file__))
 
 config = {
+    'quit': ('q', 'quit', 'exit'),
+    'list': ('l', 'ls'),
     'download': ('d', 'dl', 'download'),
     'show': ('s', 'sh', 'show')
 }
@@ -109,7 +109,6 @@ def main():
     while user_input not in ['q', 'quit', 'exit']:
         print('Choose operation (h for help):')
         user_input = input('>> ')
-        #user_input = user_input.lower()
         cmd = re.split('\s+', user_input)[0].lower()
         if cmd in ['ls']:
             for playlist in pldl.list_playlists():
@@ -123,14 +122,15 @@ def main():
                     target_id = item['id']
                     break
             if target_id:
-                print('hit')
+                # change dir start here
+                selected_playlist = pldl.list_playlist_items(target_id)
+                for video in selected_playlist:
+                    pldl.download_single_item(video['id'])
             else:
                 print('No such playlist!')
         elif cmd in ['s', 'sh', 'show']:
             match = re.match(r'(s|sh|show)\s+(.*)', user_input, flags=re.I)
             target_playlist = match.group(2)
-            print(target_playlist)
-            print(user_input)
             for playlist in pldl.list_playlists():
                 playlistId = playlist['id']
                 if target_playlist == playlist['title']:
@@ -138,8 +138,7 @@ def main():
                     for video in selected_playlist:
                         position = video['position'] + 1
                         title = video['title']
-                        # full_video = video['position'], video['title']
-                        full_video = f'{position}, {title}'
+                        full_video = f'{position} - {title}'
                         print(full_video)
         else:
             print('Invalid command!')
