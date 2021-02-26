@@ -123,6 +123,12 @@ def main():
                     break
             if target_id:
                 # change dir start here
+                new_dir = os.path.join(starting_dir, target_playlist)
+                if os.path.exists(item['title']):
+                    os.chdir(new_dir)
+                else:
+                    os.mkdir(target_playlist)
+                    os.chdir(new_dir)
                 selected_playlist = pldl.list_playlist_items(target_id)
                 for video in selected_playlist:
                     pldl.download_single_item(video['id'])
