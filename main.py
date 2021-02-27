@@ -122,7 +122,6 @@ def main():
                     target_id = item['id']
                     break
             if target_id:
-                # change dir start here
                 new_dir = os.path.join(starting_dir, target_playlist)
                 if os.path.exists(item['title']):
                     os.chdir(new_dir)
@@ -132,6 +131,7 @@ def main():
                 selected_playlist = pldl.list_playlist_items(target_id)
                 for video in selected_playlist:
                     pldl.download_single_item(video['id'])
+                os.chdir(starting_dir)
             else:
                 print('No such playlist!')
         elif cmd in ['s', 'sh', 'show']:
