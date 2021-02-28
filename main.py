@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 import os
+import sys
 import pprint
 import pickle
 import youtube_dl
@@ -14,6 +15,15 @@ SCOPES = ['https://www.googleapis.com/auth/youtube.readonly']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 
+starting_dir = os.path.dirname(os.path.abspath(__file__))
+
+config = {
+    'quit': ('q', 'quit', 'exit'),
+    'list': ('l', 'ls'),
+    'download': ('d', 'dl', 'download'),
+    'show': ('s', 'sh', 'show')
+}
+
 
 class PlaylistDownloader():
 
@@ -22,6 +32,7 @@ class PlaylistDownloader():
         self.playlists = None
 
     def download_single_item(self, id):
+
         video_link = 'http://youtube.com/watch?v={}'.format(id)
         ydl_options = {
             'format': 'bestaudio/best',
@@ -46,6 +57,8 @@ class PlaylistDownloader():
             playlists = [{'id': item['id'], 'title': item['snippet']['title']}
                          for item in response['items']]
             self.playlists = playlists
+        if not playlists:
+            print('No playlists found!')
         return self.playlists
 
     def list_playlist_items(self, id):
@@ -64,30 +77,10 @@ class PlaylistDownloader():
             playlist_videos += videos
         return playlist_videos
 
-    def download_all(self):
-        if not self.playlists:
-            self.list_playlists()
-        all_videos = []
-        for playlist in self.playlists:
-            all_videos += self.list_playlist_items(playlist['id'])
-
-        for video in all_videos:
-            self.download_single_item(video['id'])
-
-
-starting_dir = os.path.dirname(os.path.abspath(__file__))
-
-config = {
-    'quit': ('q', 'quit', 'exit'),
-    'list': ('l', 'ls'),
-    'download': ('d', 'dl', 'download'),
-    'show': ('s', 'sh', 'show')
-}
-
 
 def main():
     credentials = None
-    # check if credentials exist if not make and write to file
+
     if os.path.exists('token.pickle'):
         print('Getting credentials from file')
         with open('token.pickle', 'rb') as token:
@@ -104,17 +97,22 @@ def main():
             with open('token.pickle', 'wb') as token:
                 print("Saving credentials")
                 pickle.dump(credentials, token)
+
     pldl = PlaylistDownloader(credentials)
+
     user_input = ''
-    while user_input not in ['q', 'quit', 'exit']:
-        print('Choose operation (h for help):')
+
+    print('Type [commands] to see available commands')
+    print('Type [command] [playlist name]')
+    while user_input not in config['quit']:
         user_input = input('>> ')
         cmd = re.split('\s+', user_input)[0].lower()
-        if cmd in ['ls']:
+        if cmd in config['list']:
             for playlist in pldl.list_playlists():
                 print(playlist['title'])
-        elif cmd in ['d', 'download', 'dl']:
-            match = re.match(r'(d|dl|download)\s+(.*)', user_input, flags=re.I)
+        elif cmd in config['download']:
+            match = re.match(
+                r'({})\s+(.*)'.format('|'.join(config['download'])), user_input, flags=re.I)
             target_playlist = match.group(2)
             target_id = None
             for item in pldl.list_playlists():
@@ -134,8 +132,9 @@ def main():
                 os.chdir(starting_dir)
             else:
                 print('No such playlist!')
-        elif cmd in ['s', 'sh', 'show']:
-            match = re.match(r'(s|sh|show)\s+(.*)', user_input, flags=re.I)
+        elif cmd in config['show']:
+            match = re.match(
+                r'({})\s+(.*)'.format('|'.join(config['show'])), user_input, flags=re.I)
             target_playlist = match.group(2)
             for playlist in pldl.list_playlists():
                 playlistId = playlist['id']
@@ -146,8 +145,13 @@ def main():
                         title = video['title']
                         full_video = f'{position} - {title}'
                         print(full_video)
+        elif user_input == 'commands':
+            for key, value in config.items():
+                print(f'- {key} -> {value}')
+        elif user_input in config['quit']:
+            pass
         else:
-            print('Invalid command!')
+            print('Invalid command')
 
 
 if __name__ == '__main__':
